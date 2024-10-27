@@ -307,10 +307,9 @@ class CustomTextView: UITextView {
         let text = self.text as NSString
         let lineRange = text.lineRange(for: NSRange(location: caretIndex, length: 0))
 
-        if cachedLineRange != lineRange {
-            cachedLineRange = lineRange
-            updateHighlightLayer()
-        }
+        // this always runs, no matter the check, mostlikely because of location being always offset
+        cachedLineRange = lineRange
+        updateHighlightLayer()
     }
     
     private func updateHighlightLayer() {
@@ -319,7 +318,6 @@ class CustomTextView: UITextView {
             return
         }
         
-        let layoutManager = self.layoutManager
         let path = UIBezierPath()
         
         layoutManager.enumerateLineFragments(forGlyphRange: currentLineRange) { (rect, _, _, _, _) in
