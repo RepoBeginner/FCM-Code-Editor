@@ -319,16 +319,12 @@ class CustomTextView: UITextView {
             return
         }
         
-        let start = position(from: beginningOfDocument, offset: currentLineRange.location)!
-        let end = position(from: start, offset: currentLineRange.length)!
-        let rangeForHighlight = textRange(from: start, to: end)!
-
-        // Use selectionRects to calculate the path
-        let lineRects = selectionRects(for: rangeForHighlight)
-        
+        let layoutManager = self.layoutManager
         let path = UIBezierPath()
-        for rect in lineRects {
-            path.append(UIBezierPath(roundedRect: rect.rect, cornerRadius: 4.0))
+        
+        layoutManager.enumerateLineFragments(forGlyphRange: currentLineRange) { (rect, _, _, _, _) in
+            let adjustedRect = rect.offsetBy(dx: self.textContainerInset.left, dy: self.textContainerInset.top)
+            path.append(UIBezierPath(rect: adjustedRect))
         }
         
         highlightLayer.path = path.cgPath
