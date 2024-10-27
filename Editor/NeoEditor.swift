@@ -289,6 +289,10 @@ class CustomTextView: UITextView {
     var lineLight: CGColor = UIColor.clear.cgColor
 
     private(set) var cachedLineRange: NSRange?
+    private var lastLineRange: NSRange?
+    private var lastCaretIndex: Int? // Cache for caret index
+    private var lastText: String? // Cache for the last text
+    private var lastLineRects: [CGRect]? // Cache for last line rects
     private let highlightLayer = CAShapeLayer()
     
     override init(frame: CGRect, textContainer: NSTextContainer?) {
@@ -314,7 +318,7 @@ class CustomTextView: UITextView {
     
     func setupHighlightLayer() {
         highlightLayer.fillColor = lineLight
-        layer.insertSublayer(highlightLayer, at: 0)
+        layer.insertSublayer(highlightLayer, at: 1)
     }
     
     private func updateCurrentLineRange() {
@@ -323,28 +327,44 @@ class CustomTextView: UITextView {
         }
         
         let caretIndex = offset(from: beginningOfDocument, to: caretPosition)
+        
+        if caretIndex == lastCaretIndex {
+            return
+        }
+        
+        lastCaretIndex = caretIndex
+        
         let text = self.text as NSString
-        let lineRange = text.lineRange(for: NSRange(location: caretIndex, length: 0))
+        cachedLineRange = text.lineRange(for: NSRange(location: caretIndex, length: 0))
 
-        // this always runs, no matter the check, mostlikely because of location being always offset
-        cachedLineRange = lineRange
         updateHighlightLayer()
     }
     
     private func updateHighlightLayer() {
         guard let currentLineRange = cachedLineRange else {
             highlightLayer.path = nil
+            lastLineRange = nil
+            lastLineRects = nil
             return
         }
+
+        if currentLineRange == lastLineRange {
+            return
+        }
+
+        lastLineRange = currentLineRange
         
         let path = UIBezierPath()
-        
+        var newLineRects: [CGRect] = []
+
         layoutManager.enumerateLineFragments(forGlyphRange: currentLineRange) { (rect, _, _, _, _) in
             let adjustedRect = rect.offsetBy(dx: self.textContainerInset.left, dy: self.textContainerInset.top)
             path.append(UIBezierPath(rect: adjustedRect))
+            newLineRects.append(adjustedRect)
         }
-        
+
         highlightLayer.path = path.cgPath
+        lastLineRects = newLineRects
     }
     
     func enableHighlightLayer() {
