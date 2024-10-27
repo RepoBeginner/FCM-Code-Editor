@@ -38,7 +38,7 @@ struct NeoEditor: UIViewRepresentable {
     
     let navigationBar: UINavigationBar
     let navigationItem: UINavigationItem
-    let lineNumberLabel: UILabel
+    //let lineNumberLabel: UILabel
     let highlightRules: [HighlightRule]
     let filepath: String
     let filename: String
@@ -81,7 +81,7 @@ struct NeoEditor: UIViewRepresentable {
         }()
         
         self.highlightRules = grule(gsuffix(from: filename))
-        lineNumberLabel = UILabel()
+        //lineNumberLabel = UILabel()
         navigationBar = UINavigationBar()
         navigationItem = UINavigationItem(title: filename)
     }
@@ -163,6 +163,7 @@ struct NeoEditor: UIViewRepresentable {
         return containerView
     }
 
+    // basically the toolbar
     func setupToolbar(textView: UITextView) {
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
@@ -172,10 +173,11 @@ struct NeoEditor: UIViewRepresentable {
         let flexibleSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         toolbar.items = [tabButton, flexibleSpace]
         textView.inputAccessoryView = toolbar
-        lineNumberLabel.setContentHuggingPriority(.required, for: .horizontal)
-        lineNumberLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        //lineNumberLabel.setContentHuggingPriority(.required, for: .horizontal)
+        //lineNumberLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
     }
         
+    // function to insert content to the textView
     func insertTextAtCurrentPosition(textView: UITextView, newText: String) {
         if let selectedRange = textView.selectedTextRange {
             textView.replace(selectedRange, withText: newText)
@@ -190,6 +192,7 @@ struct NeoEditor: UIViewRepresentable {
         var updatingUIView = false
 
         init(_ markdownEditorView: NeoEditor) {
+            // getting parent
             self.parent = markdownEditorView
         }
         
@@ -198,15 +201,24 @@ struct NeoEditor: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
+            // getting/converting (to) CustomTextView
             guard let textView = textView as? CustomTextView else { return }
+            
+            // background threading atleast minimally
             DispatchQueue.global(qos: .userInitiated).async {
+                // cheking if the user did paste
                 if textView.didPasted {
                     DispatchQueue.main.async {
+                        // re-applying highlighting to the entire file to ensure that the pasted content is highlighted
                         self.applyHighlighting(to: textView, with: NSRange(location: 0, length: textView.text.utf16.count))
+                        
+                        // resetting variable to avoid recalling
                         textView.didPasted = false
                     }
                 }
+                
                 DispatchQueue.main.async {
+                    // applying single-line highlighting
                     self.applyHighlighting(to: textView, with: textView.cachedLineRange ?? NSRange(location: 0, length: 0))
                 }
             }
@@ -248,8 +260,6 @@ struct NeoEditor: UIViewRepresentable {
                 }
             }
         }
-            
-        func textViewDidChangeSelection(_ textView: UITextView) {}
         
         func textViewDidBeginEditing(_ textView: UITextView) {
             guard let textView = textView as? CustomTextView else { return }
@@ -267,7 +277,7 @@ class CustomTextView: UITextView {
     var didPasted: Bool = false
     var lineLight: CGColor = UIColor.clear.cgColor
 
-    var cachedLineRange: NSRange?
+    private(set) var cachedLineRange: NSRange?
     private let highlightLayer = CAShapeLayer()
     
     override init(frame: CGRect, textContainer: NSTextContainer?) {
