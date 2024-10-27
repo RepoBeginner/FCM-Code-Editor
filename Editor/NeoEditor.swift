@@ -213,17 +213,18 @@ struct NeoEditor: UIViewRepresentable {
         }
         
         func applyHighlighting(to textView: UITextView, with visibleRange: NSRange) {
+            // getting text for background thread processing
             let text = textView.text ?? ""
-            let highlightRules = self.parent.highlightRules
+            
+            // processing text
             DispatchQueue.global(qos: .userInitiated).async {
-                var highlightedRanges = [NSRange]()
                 var attributesToApply = [(NSRange, NSAttributedString.Key, Any)]()
-                highlightRules.forEach { rule in
+                self.parent.highlightRules.forEach { rule in
                     let matches = rule.pattern.matches(in: text, options: [], range: visibleRange)
                     matches.forEach { match in
                         let matchRange = match.range
-                        let isOverlapping = highlightedRanges.contains { highlightedRange in
-                            NSIntersectionRange(highlightedRange, matchRange).length > 0
+                        let isOverlapping = attributesToApply.contains { (range, _, _) in
+                            NSIntersectionRange(range, matchRange).length > 0
                         }
                         guard !isOverlapping else { return }
                         rule.formattingRules.forEach { formattingRule in
@@ -233,7 +234,6 @@ struct NeoEditor: UIViewRepresentable {
                                 let matchContent = String(text[matchRangeStr])
                                 let value = calculateValue(matchContent, matchRangeStr)
                                 attributesToApply.append((match.range, key, value))
-                                highlightedRanges.append(match.range)
                             }
                         }
                     }
