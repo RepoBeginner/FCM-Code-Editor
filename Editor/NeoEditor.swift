@@ -205,23 +205,17 @@ struct NeoEditor: UIViewRepresentable {
             guard let textView = textView as? CustomTextView else { return }
             
             // background threading atleast minimally
-            DispatchQueue.global(qos: .userInitiated).async {
-                // cheking if the user did paste
-                if textView.didPasted {
-                    DispatchQueue.main.async {
-                        // re-applying highlighting to the entire file to ensure that the pasted content is highlighted
-                        self.applyHighlighting(to: textView, with: NSRange(location: 0, length: textView.text.utf16.count))
-                        
-                        // resetting variable to avoid recalling
-                        textView.didPasted = false
-                    }
-                }
-                
-                DispatchQueue.main.async {
-                    // applying single-line highlighting
-                    self.applyHighlighting(to: textView, with: textView.cachedLineRange ?? NSRange(location: 0, length: 0))
-                }
+            // cheking if the user did paste
+            if textView.didPasted {
+                // re-applying highlighting to the entire file to ensure that the pasted content is highlighted
+                self.applyHighlighting(to: textView, with: NSRange(location: 0, length: textView.text.utf16.count))
+
+                // resetting variable to avoid recalling
+                textView.didPasted = false
             }
+            
+            // applying single-line highlighting
+            self.applyHighlighting(to: textView, with: textView.cachedLineRange ?? NSRange(location: 0, length: 0))
         }
         
         func applyHighlighting(to textView: UITextView, with visibleRange: NSRange) {
