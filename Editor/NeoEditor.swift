@@ -190,6 +190,7 @@ struct NeoEditor: UIViewRepresentable {
         var parent: NeoEditor
         var currentRange: NSRange?
         var updatingUIView = false
+        private var highlightCache: [NSRange: [NSAttributedString.Key: Any]] = [:]
 
         init(_ markdownEditorView: NeoEditor) {
             // getting parent
@@ -204,7 +205,6 @@ struct NeoEditor: UIViewRepresentable {
             // getting/converting (to) CustomTextView
             guard let textView = textView as? CustomTextView else { return }
             
-            // background threading atleast minimally
             // cheking if the user did paste
             if textView.didPasted {
                 // re-applying highlighting to the entire file to ensure that the pasted content is highlighted
@@ -212,38 +212,54 @@ struct NeoEditor: UIViewRepresentable {
 
                 // resetting variable to avoid recalling
                 textView.didPasted = false
+            } else {
+                // applying single-line highlighting
+                self.applyHighlighting(to: textView, with: textView.cachedLineRange ?? NSRange(location: 0, length: 0))
             }
-            
-            // applying single-line highlighting
-            self.applyHighlighting(to: textView, with: textView.cachedLineRange ?? NSRange(location: 0, length: 0))
         }
         
         func applyHighlighting(to textView: UITextView, with visibleRange: NSRange) {
-            // getting text for background thread processing
+            // Getting text for background thread processing
             let text = textView.text ?? ""
-            
-            // processing text
+
             DispatchQueue.global(qos: .userInitiated).async {
                 var attributesToApply = [(NSRange, NSAttributedString.Key, Any)]()
                 self.parent.highlightRules.forEach { rule in
                     let matches = rule.pattern.matches(in: text, options: [], range: visibleRange)
                     matches.forEach { match in
                         let matchRange = match.range
+                        
+                        // Check if the match is already cached
+                        if let cachedAttributes = self.highlightCache[matchRange] {
+                            // Use cached attributes
+                            for (key, value) in cachedAttributes {
+                                attributesToApply.append((matchRange, key, value))
+                            }
+                            return
+                        }
+
+                        // Check for overlapping ranges
                         let isOverlapping = attributesToApply.contains { (range, _, _) in
                             NSIntersectionRange(range, matchRange).length > 0
                         }
                         guard !isOverlapping else { return }
+                        
                         rule.formattingRules.forEach { formattingRule in
                             guard let key = formattingRule.key,
                                   let calculateValue = formattingRule.calculateValue else { return }
                             if let matchRangeStr = Range(match.range, in: text) {
                                 let matchContent = String(text[matchRangeStr])
                                 let value = calculateValue(matchContent, matchRangeStr)
+
+                                // Store the result in the cache
+                                self.highlightCache[matchRange] = [key: value]
                                 attributesToApply.append((match.range, key, value))
                             }
                         }
                     }
                 }
+                
+                // Update the text storage with the attributes
                 DispatchQueue.main.async {
                     textView.textStorage.beginEditing()
                     textView.textStorage.addAttribute(.foregroundColor, value: self.parent.config.standard, range: visibleRange)
@@ -254,6 +270,7 @@ struct NeoEditor: UIViewRepresentable {
                 }
             }
         }
+
         
         func textViewDidBeginEditing(_ textView: UITextView) {
             guard let textView = textView as? CustomTextView else { return }
