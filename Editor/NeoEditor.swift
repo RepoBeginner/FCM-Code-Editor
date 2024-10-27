@@ -269,7 +269,6 @@ class CustomTextView: UITextView {
 
     var cachedLineRange: NSRange?
     private let highlightLayer = CAShapeLayer()
-    private(set) var currentLineRange: NSRange?
     
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
@@ -299,7 +298,6 @@ class CustomTextView: UITextView {
     
     private func updateCurrentLineRange() {
         guard let caretPosition = selectedTextRange?.start else {
-            currentLineRange = nil
             return
         }
         
